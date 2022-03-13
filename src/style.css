@@ -8,9 +8,14 @@ html,
 body {
   width: 100%;
   height: 100%;
-  background-color: #18181B;
+  background-color: #18181b;
 }
 
 canvas {
   display: block;
+  position: absolute;
+}
+
+#ui-canvas {
+  z-index: 5;
 }
