@@ -1,6 +1,6 @@
 // reference: https://webgl2fundamentals.org/
 
-const LINKS_COLOR = [113 / 255, 113 / 255, 122 / 255, 0.2];
+const LINKS_COLOR = [113 / 255, 113 / 255, 122 / 255, 0.1];
 
 export class LinksRenderer {
   /**
@@ -9,9 +9,7 @@ export class LinksRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     /** @type {WebGL2RenderingContext} */
-    const gl = canvas.getContext("webgl2", {
-      premultipliedAlpha: false,
-    });
+    const gl = canvas.getContext("webgl2");
     /** @type {WebGL2RenderingContext} */
     this.gl = gl;
     /** @type {WebGLProgram} */
@@ -27,6 +25,9 @@ export class LinksRenderer {
     gl.enableVertexAttribArray(positionLocation);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    // Enable transparency
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   }
 
   clear() {
