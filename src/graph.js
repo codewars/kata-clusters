@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { GraphOptions } from "./types";
+import { LinksRenderer } from "./renderer";
 
 export const TAG = 1;
 export const KATA = 2;
@@ -63,6 +64,11 @@ export function renderStaticForceGraph(options) {
   const context = canvas.getContext("2d");
   const uiCanvas = selection.node();
   const uiContext = uiCanvas.getContext("2d");
+  // Use a separate canvas to render links on using WebGL.
+  // Drawing tens of thousands of lines with canvas 2d is too slow.
+  const linksCanvas = document.getElementById("links");
+  const linksRenderer = new LinksRenderer(linksCanvas);
+
   // Fit to view and render.
   fillViewport();
 
@@ -91,6 +97,8 @@ export function renderStaticForceGraph(options) {
     const height = window.innerHeight;
     setCanvasSize(uiCanvas, width, height);
     setCanvasSize(canvas, width, height);
+    linksRenderer.clear();
+    setCanvasSize(linksCanvas, width, height);
     fitToView();
   }
 
@@ -129,15 +137,14 @@ export function renderStaticForceGraph(options) {
   function ticked() {
     const visible = visibleNodes();
     context.save();
+    linksRenderer.clear();
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = BG_COLOR;
-    context.fillRect(0, 0, canvas.width, canvas.height);
     context.translate(transform.x, transform.y);
     context.scale(transform.k, transform.k);
 
-    context.beginPath();
-    context.lineCap = "round";
-    context.strokeStyle = "rgba(113, 113, 122, 0.2)";
+    // Coordinates of links to render with WebGL.
+    const points = [];
     links.forEach(([a, b]) => {
       // Skip links with both source and target outside of view
       const source = nodes[a];
@@ -149,10 +156,14 @@ export function renderStaticForceGraph(options) {
         // Select tag nodes to be rendered. All links are from kata to tag.
         selectedNodes.add(target.index);
       }
-      context.moveTo(source.x, source.y);
-      context.lineTo(target.x, target.y);
+      points.push(
+        transform.applyX(source.x),
+        transform.applyY(source.y),
+        transform.applyX(target.x),
+        transform.applyY(target.y)
+      );
     });
-    context.stroke();
+    linksRenderer.drawLinks(points, transform.k / 2);
 
     nodes.forEach((d) => {
       if (!visible.has(d.index)) return;
