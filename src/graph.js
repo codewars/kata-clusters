@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { GraphOptions } from "./types";
+import { LinksRenderer } from "./renderer";
 
 export const TAG = 1;
 export const KATA = 2;
@@ -51,16 +52,23 @@ export function renderStaticForceGraph(options) {
   const zoom = zoomBehavior();
   // Event handlers
   const selection = d3
-    .select("#canvas")
+    .select("#ui-canvas")
     .call(zoom)
-    .on("mousemove", debounce(onMousemove, 100))
+    .on("mousemove", debounce(onMousemove, 50))
     .on("click", onClick)
     .on("auxclick", onAuxclick);
   document.addEventListener("keydown", onEscapeKey);
   window.addEventListener("resize", debounce(fillViewport, 500));
   /** @type {HTMLCanvasElement} */
-  const canvas = selection.node();
+  const canvas = document.getElementById("canvas");
   const context = canvas.getContext("2d");
+  const uiCanvas = selection.node();
+  const uiContext = uiCanvas.getContext("2d");
+  // Use a separate canvas to render links on using WebGL.
+  // Drawing tens of thousands of lines with canvas 2d is too slow.
+  const linksCanvas = document.getElementById("links");
+  const linksRenderer = new LinksRenderer(linksCanvas);
+
   // Fit to view and render.
   fillViewport();
 
@@ -76,12 +84,21 @@ export function renderStaticForceGraph(options) {
       .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
   }
 
+  function setCanvasSize(c, width, height) {
+    c.width = width;
+    c.height = height;
+    c.style.width = width;
+    c.style.height = height;
+  }
+
   // Make canvas fill viewport
   function fillViewport() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    canvas.style.width = canvas.width;
-    canvas.style.height = canvas.height;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    setCanvasSize(uiCanvas, width, height);
+    setCanvasSize(canvas, width, height);
+    linksRenderer.clear();
+    setCanvasSize(linksCanvas, width, height);
     fitToView();
   }
 
@@ -98,42 +115,58 @@ export function renderStaticForceGraph(options) {
       );
   }
 
-  function isInView(p) {
-    const w = context.canvas.width;
-    const h = context.canvas.height;
-    const [x, y] = transform.apply([p.x, p.y]);
-    return x >= 0 && x <= w && y >= 0 && y <= h;
+  // A set of visible nodes' index
+  function visibleNodes() {
+    const [xmin, ymin] = transform.invert([0, 0]);
+    const [xmax, ymax] = transform.invert([canvas.width, canvas.height]);
+    const results = new Set();
+    qtree.visit((node, x1, y1, x2, y2) => {
+      if (!node.length) {
+        do {
+          const d = node.data;
+          if (d.x >= xmin && d.x < xmax && d.y >= ymin && d.y < ymax) {
+            results.add(d.index);
+          }
+        } while ((node = node.next));
+      }
+      return x1 >= xmax || y1 >= ymax || x2 < xmin || y2 < ymin;
+    });
+    return results;
   }
 
   function ticked() {
+    const visible = visibleNodes();
     context.save();
+    linksRenderer.clear();
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = BG_COLOR;
-    context.fillRect(0, 0, canvas.width, canvas.height);
     context.translate(transform.x, transform.y);
     context.scale(transform.k, transform.k);
 
-    context.beginPath();
-    context.lineCap = "round";
-    context.strokeStyle = "rgba(113, 113, 122, 0.2)";
+    // Coordinates of links to render with WebGL.
+    const points = [];
     links.forEach(([a, b]) => {
       // Skip links with both source and target outside of view
       const source = nodes[a];
       const target = nodes[b];
-      if (!isInView(source) && !isInView(target)) return;
+      if (!visible.has(source.index) && !visible.has(target.index)) return;
 
       if (clickedNode) {
         if (source.id !== clickedNode.id && target.id != clickedNode.id) return;
         // Select tag nodes to be rendered. All links are from kata to tag.
         selectedNodes.add(target.index);
       }
-      context.moveTo(source.x, source.y);
-      context.lineTo(target.x, target.y);
+      points.push(
+        transform.applyX(source.x),
+        transform.applyY(source.y),
+        transform.applyX(target.x),
+        transform.applyY(target.y)
+      );
     });
-    context.stroke();
+    linksRenderer.drawLinks(points, transform.k / 2);
 
     nodes.forEach((d) => {
-      if (!isInView(d)) return;
+      if (!visible.has(d.index)) return;
       if (!shouldShowNode(d)) return;
 
       context.beginPath();
@@ -143,27 +176,44 @@ export function renderStaticForceGraph(options) {
       const c = d3.color(color(d.group));
       context.fillStyle = c;
       context.fill();
-      context.strokeStyle =
-        hoveredNode?.index === d.index ? c.brighter() : c.darker();
+      context.strokeStyle = c.darker();
       context.stroke();
     });
+    context.restore();
+    uiTicked();
+  }
 
+  function uiTicked() {
+    uiContext.save();
+    uiContext.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+    uiContext.translate(transform.x, transform.y);
+    uiContext.scale(transform.k, transform.k);
     if (hoveredNode) {
+      const node = hoveredNode;
+      uiContext.beginPath();
+      const radius = node.group === TAG ? TAG_RADIUS : KATA_RADIUS;
+      uiContext.moveTo(node.x + radius, node.y);
+      uiContext.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+      const c = d3.color(color(node.group));
+      uiContext.fillStyle = c;
+      uiContext.strokeStyle = c.brighter();
+      uiContext.fill();
+      uiContext.stroke();
       // Show the title on hover
-      const fontSize = Math.max(Math.round(16 / transform.k), 1);
       drawText(
-        nodeTitle(hoveredNode),
-        hoveredNode.x + 8,
-        hoveredNode.y,
-        fontSize,
-        d3.color(color(hoveredNode.group))
+        uiContext,
+        nodeTitle(node),
+        node.x + 8,
+        node.y,
+        Math.max(Math.round(16 / transform.k), 1),
+        c
       );
     }
-    context.restore();
+    uiContext.restore();
   }
 
   // Draw text with background
-  function drawText(text, x, y, fontSize, fontColor) {
+  function drawText(context, text, x, y, fontSize, fontColor) {
     context.save();
     context.font = `${fontSize}px sans-serif`;
     context.textBaseline = "middle";
@@ -256,14 +306,14 @@ export function renderStaticForceGraph(options) {
     if (newCloseNode) {
       if (hoveredNode !== newCloseNode) {
         hoveredNode = newCloseNode;
-        ticked();
+        uiTicked();
       }
-      canvas.style.cursor = "pointer";
+      uiCanvas.style.cursor = "pointer";
     } else {
-      canvas.style.cursor = "move";
+      uiCanvas.style.cursor = "move";
       if (hoveredNode != null) {
         hoveredNode = null;
-        ticked();
+        uiTicked();
       }
     }
   }

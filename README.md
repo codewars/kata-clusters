@@ -1,6 +1,6 @@
 # Kata Clusters
 
-Visualization of the Codewars kata library with [D3].
+Visualization of the Codewars kata library with [D3][d3].
 
 <div align="center">
   <img width="400" src="./screenshot.png" alt="screenshot">
@@ -26,11 +26,9 @@ Click a tag node to filter the view to only show kata with the tag. Click again,
 
 Click a kata node to filter the view to only show the kata and its tags. `Ctrl/Cmd + click` to open the kata on Codewars.
 
-Note that the view might take a few seconds to update depending on the location and the number of visible nodes.
-
 ## Graph
 
-The visualization represents the library as a [DAG] with kata and tags as nodes.
+The visualization represents the library as a [DAG][dag] with kata and tags as nodes.
 
 ```mermaid
 graph LR
@@ -51,6 +49,6 @@ Kata with only weak links are pushed out, and kata with similar tags end up clos
 
 The visualization uses precomputed layout because it's impractical to simulate at runtime for this size. You can experiment with the configuration and regenerate with `npm run precompute`. Note that this can take minutes to finish.
 
-[D3]: https://d3js.org/
+[d3]: https://d3js.org/
 [d3-force]: https://github.com/d3/d3-force
-[DAG]: https://en.wikipedia.org/wiki/Directed_acyclic_graph
+[dag]: https://en.wikipedia.org/wiki/Directed_acyclic_graph
