@@ -107,14 +107,27 @@ export function renderStaticForceGraph(options) {
       );
   }
 
-  function isInView(p) {
-    const w = context.canvas.width;
-    const h = context.canvas.height;
-    const [x, y] = transform.apply([p.x, p.y]);
-    return x >= 0 && x <= w && y >= 0 && y <= h;
+  // A set of visible nodes' index
+  function visibleNodes() {
+    const [xmin, ymin] = transform.invert([0, 0]);
+    const [xmax, ymax] = transform.invert([canvas.width, canvas.height]);
+    const results = new Set();
+    qtree.visit((node, x1, y1, x2, y2) => {
+      if (!node.length) {
+        do {
+          const d = node.data;
+          if (d.x >= xmin && d.x < xmax && d.y >= ymin && d.y < ymax) {
+            results.add(d.index);
+          }
+        } while ((node = node.next));
+      }
+      return x1 >= xmax || y1 >= ymax || x2 < xmin || y2 < ymin;
+    });
+    return results;
   }
 
   function ticked() {
+    const visible = visibleNodes();
     context.save();
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = BG_COLOR;
@@ -129,7 +142,7 @@ export function renderStaticForceGraph(options) {
       // Skip links with both source and target outside of view
       const source = nodes[a];
       const target = nodes[b];
-      if (!isInView(source) && !isInView(target)) return;
+      if (!visible.has(source.index) && !visible.has(target.index)) return;
 
       if (clickedNode) {
         if (source.id !== clickedNode.id && target.id != clickedNode.id) return;
@@ -142,7 +155,7 @@ export function renderStaticForceGraph(options) {
     context.stroke();
 
     nodes.forEach((d) => {
-      if (!isInView(d)) return;
+      if (!visible.has(d.index)) return;
       if (!shouldShowNode(d)) return;
 
       context.beginPath();
