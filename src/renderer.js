@@ -40,9 +40,11 @@ export class LinksRenderer {
 
   /**
    * @param {number[]} points
-   * @param {number} lineWidth
+   * @param {number} tx
+   * @param {number} ty
+   * @param {number} k
    */
-  drawLinks(points, lineWidth = 0.5) {
+  drawLinks(points, tx, ty, k) {
     this.clear();
     /** @type {WebGL2RenderingContext} */
     const gl = this.gl;
@@ -54,13 +56,23 @@ export class LinksRenderer {
       gl.canvas.width,
       gl.canvas.height
     );
+    gl.uniformMatrix3fv(
+      gl.getUniformLocation(this.program, "u_matrix"),
+      false,
+      // prettier-ignore
+      [
+        k, 0, 0,
+        0, k, 0,
+        tx, ty, 1,
+      ]
+    );
 
     // Set coordinates
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
     gl.uniform4fv(gl.getUniformLocation(this.program, "u_color"), LINKS_COLOR);
 
-    gl.lineWidth(lineWidth);
+    gl.lineWidth(k);
     gl.drawArrays(gl.LINES, 0, points.length / 2);
   }
 }
@@ -73,9 +85,12 @@ const vertexShaderSource = `#version 300 es
 in vec2 a_position;
 // The resolution of the canvas
 uniform vec2 u_resolution;
+// The transform matrix.
+uniform mat3 u_matrix;
 
 void main() {
-  vec2 clipSpace = (a_position / u_resolution) * 2.0 - 1.0;
+  vec2 position = (u_matrix * vec3(a_position, 1)).xy;
+  vec2 clipSpace = (position / u_resolution) * 2.0 - 1.0;
   gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
 }
 `;

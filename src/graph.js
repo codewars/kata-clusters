@@ -156,14 +156,9 @@ export function renderStaticForceGraph(options) {
         // Select tag nodes to be rendered. All links are from kata to tag.
         selectedNodes.add(target.index);
       }
-      points.push(
-        transform.applyX(source.x),
-        transform.applyY(source.y),
-        transform.applyX(target.x),
-        transform.applyY(target.y)
-      );
+      points.push(source.x, source.y, target.x, target.y);
     });
-    linksRenderer.drawLinks(points, transform.k / 2);
+    linksRenderer.drawLinks(points, transform.x, transform.y, transform.k);
 
     nodes.forEach((d) => {
       if (!visible.has(d.index)) return;
