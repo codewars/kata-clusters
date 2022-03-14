@@ -1,9 +1,10 @@
-// Run with `node precompute.js` to get `computed.json`
+// Run with `npm run precompute` to get `data/computed.json`
 import fs from "node:fs";
 
 import * as d3 from "d3";
+import { z } from "zod";
 
-import { TAG, KATA, BETA, KATA_RADIUS, TAG_RADIUS } from "./graph.js";
+import { TAG, KATA, KATA_RADIUS, TAG_RADIUS } from "./graph.js";
 import { Node, KataTagsData, Computed } from "./types.js";
 
 const json = JSON.parse(
@@ -12,12 +13,20 @@ const json = JSON.parse(
   })
 );
 const data = z.array(KataTagsData).parse(json);
+const categories = [
+  "Fundamentals",
+  "Algorithms",
+  "Bugs",
+  "Refactoring",
+  "Puzzles",
+];
 const tags = new Set(data.flatMap((d) => d.tags));
 const nodes = [
-  ...data.map(({ id, name, approved }, index) => ({
+  ...data.map(({ id, name, tags }, index) => ({
     id,
     name,
-    group: approved ? KATA : BETA,
+    // Color by category
+    group: KATA + categories.indexOf(tags[0]),
     index,
     x: 0,
     y: 0,

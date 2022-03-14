@@ -18,7 +18,8 @@ The main goal of this project is visualizing the current state of the library to
 
 Open <https://codewars.github.io/kata-clusters/> and play with it.
 
-The blue circles are tags. The orange and the red are approved and beta kata respectively. Hover over a node to see the name.
+The blue and slightly larger circles are tags. Other circles are kata colored based on categories ("Fundamentals", "Algorithms", "Bugs", "Refactoring", "Puzzles").
+Hover over a node to see the name.
 
 Click and drag to pan, use the mouse wheel to zoom, or use touch.
 

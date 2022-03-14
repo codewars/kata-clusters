@@ -1,10 +1,9 @@
 import * as d3 from "d3";
-import { GraphOptions } from "./types";
-import { LinksRenderer } from "./renderer";
+import { GraphOptions } from "./types.js";
+import { LinksRenderer } from "./renderer.js";
 
-export const TAG = 1;
-export const KATA = 2;
-export const BETA = 3;
+export const TAG = 0;
+export const KATA = 1;
 
 export const TAG_RADIUS = 6;
 export const KATA_RADIUS = 4;
