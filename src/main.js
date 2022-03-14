@@ -1,6 +1,6 @@
 import "./style.css";
 import { renderStaticForceGraph } from "./graph.js";
-import { Computed } from "./types";
+import { Computed } from "./types.js";
 
 import("./data/computed.json").then((json) => {
   const data = Computed.parse(json);
