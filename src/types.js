@@ -5,6 +5,8 @@ export const KataTagsData = z.object({
   name: z.string(),
   approved: z.boolean(),
   tags: z.array(z.string()),
+  // Discipline on Codewars
+  category: z.string(),
 });
 
 export const Node = z.object({

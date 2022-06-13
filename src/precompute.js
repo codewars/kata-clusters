@@ -12,7 +12,12 @@ const json = JSON.parse(
     encoding: "utf8",
   })
 );
-const data = z.array(KataTagsData).parse(json);
+const data = z
+  .array(KataTagsData)
+  .parse(json)
+  // Exclude untagged
+  .filter((d) => d.tags.length > 0);
+console.log(`excluded ${json.length - data.length} untagged kata`);
 const categories = [
   "Fundamentals",
   "Algorithms",
@@ -22,11 +27,11 @@ const categories = [
 ];
 const tags = new Set(data.flatMap((d) => d.tags));
 const nodes = [
-  ...data.map(({ id, name, tags }, index) => ({
+  ...data.map(({ id, name, category }, index) => ({
     id,
     name,
     // Color by category
-    group: KATA + categories.indexOf(tags[0]),
+    group: KATA + categories.indexOf(category),
     index,
     x: 0,
     y: 0,
